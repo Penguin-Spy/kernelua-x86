@@ -11,6 +11,7 @@
  */
 
 #include "term.h"
+#include "misc.h"
 
 static int cursor_x = 0;
 static int cursor_y = 0;
@@ -54,4 +55,9 @@ void term_write(char* s) {
         putc(*s++);
         cursor_x++;
     }
+    uint16_t pos = cursor_y * fb_width + cursor_x;
+    outb(0x3d4, 0x0f);
+    outb(0x3d5, (uint8_t) (pos & 0xff));
+	outb(0x3d4, 0x0e);
+	outb(0x3d5, (uint8_t) ((pos >> 8) & 0xff));
 }

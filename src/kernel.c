@@ -18,6 +18,8 @@ void kernel_main() {
   term_setTextColor(COLORS_PINK);
   term_setBackgroundColor(COLORS_CYAN);
 
+  term_clear();
+
   term_write("hi there");
 
   while (1) {};
