@@ -1,0 +1,22 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "run",
+            "command": "make qemu",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "silent",
+                "revealProblems": "onProblem",
+                "close": true
+            }
+        }
+    ]
+}
