@@ -2,7 +2,11 @@
 porting [kernelua](https://github.com/Penguin-Spy/kernelua) to x86 as well (i.e. normal computers)
 
 # compiling
-build using [a gcc cross compiler targeting `i686-elf`](https://wiki.osdev.org/GCC_Cross-Compiler)
+install: `sudo apt install gnu-efi gcc-mingw-w64-x86-64-posix`  
+compile: `make`
+## running
+install: `sudo apt install qemu-system-x86 ovmf`  
+run: `make qemu`
 
 # License
 Copyright © Penguin_Spy 2024

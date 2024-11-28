@@ -10,17 +10,17 @@
  * networks.
  */
 
-#include "term.h"
+#include <efi.h>
+#include <efilib.h>
 
-void kernel_main() {
-  term_init();
+EFI_STATUS efi_main(EFI_UNUSED EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *ST) {
+    EFI_INPUT_KEY Key;
 
-  term_setTextColor(COLORS_PINK);
-  term_setBackgroundColor(COLORS_CYAN);
+    ST->ConOut->OutputString(ST->ConOut, L"haiii :3\r\n");
 
-  term_clear();
+    // clear input buffer & wait for key
+    ST->ConIn->Reset(ST->ConIn, FALSE);
+    while (ST->ConIn->ReadKeyStroke(ST->ConIn, &Key) == EFI_NOT_READY);
 
-  term_write("hi there");
-
-  while (1) {};
+    return EFI_SUCCESS;
 }
