@@ -6,7 +6,7 @@ LDFLAGS := -nostdlib -Wl,-dll -shared -Wl,--subsystem,10 -e efi_main
 .PHONY: clean qemu
 all: kernelua.bin
 
-kernelua.bin: src/kernel.o
+kernelua.bin: src/start_uefi.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 kernelua.img: kernelua.bin
