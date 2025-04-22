@@ -45,7 +45,10 @@ void term_setTextColor(int color);
 void term_setBackgroundColor(int color);
 
 void term_write(char* string);
-void term_writeHex(unsigned int hex);
+void term_writeHex(uint64_t hex, uint8_t width);
 void term_writeNumber(int number);
+
+#define term_writeHex32(hex) term_writeHex(hex, 4)
+#define term_writeHex64(hex) term_writeHex(hex, 8)
 
 #endif

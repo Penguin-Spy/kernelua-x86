@@ -12,6 +12,7 @@
 
 #include "term.h"
 #include "font.h"
+#include <stdint.h>
 
 static uint8_t fb_ready = 0;
 static volatile uint32_t* fb;   // indexed by pixel (not byte)
@@ -27,8 +28,8 @@ uint32_t foreground_color, background_color;
 // width/height are in pixels, ppl is pixels per line
 void term_init(volatile uint32_t* in_fb, int width, int height, int ppl) {
     fb = in_fb;
-    fb_width = width * FONT_WIDTH;
-    fb_height = height * FONT_HEIGHT;
+    fb_width = width / FONT_WIDTH;
+    fb_height = height / FONT_HEIGHT;
     fb_ppl = ppl;
 
     term_setCursorPos(0, 0);
@@ -100,9 +101,9 @@ void term_write(char* string) {
     }
 }
 
-void term_writeHex(unsigned int hex) {
+void term_writeHex(uint64_t hex, uint8_t width) {
     int digit;
-    for(int i = 28; i >= 0; i -= 4) { // loop through shifting less bits over
+    for(int i = (width-1)*4; i >= 0; i -= 4) { // loop through shifting less bits over
         digit = hex >> i & 0xf; // last 16 bits
         if(digit > 9) { digit+= 0x37; } else { digit += 0x30; } // offset to correct klscii character
         putC(digit);

@@ -15,15 +15,9 @@
 #include <stdint.h>
 
 #include "term.h"
+#include "memory_manager.h"
 
-#define UEFI_MMAP_SIZE 0x4000
-struct uefi_mmap {
-    uint64_t nbytes;
-    uint8_t buffer[UEFI_MMAP_SIZE];
-    uint64_t mapkey;
-    uint64_t desc_size;
-    uint32_t desc_version;
-} uefi_mmap;
+uefi_mmap map;
 
 EFI_SYSTEM_TABLE *ST;
 
@@ -33,8 +27,8 @@ void Print2(uint16_t* string) {
   ST->ConOut->OutputString(ST->ConOut, string);
 }
 
-// clear input buffer & wait for key
-#define WAIT ST->ConIn->Reset(ST->ConIn, FALSE); while(ST->ConIn->ReadKeyStroke(ST->ConIn, &Key) == EFI_NOT_READY)
+// clear input buffer & wait for right arrow key
+#define WAIT ST->ConIn->Reset(ST->ConIn, FALSE); while(ST->ConIn->ReadKeyStroke(ST->ConIn, &Key) == EFI_NOT_READY || Key.ScanCode != SCAN_RIGHT)
 
 EFI_STATUS efi_main(EFI_UNUSED EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *table) {
     EFI_INPUT_KEY Key;
@@ -81,41 +75,23 @@ EFI_STATUS efi_main(EFI_UNUSED EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *table) 
     WAIT;
 
     // get memory map
-    /*uefi_mmap.nbytes = UEFI_MMAP_SIZE;
+    map.buffer_size = UEFI_MMAP_SIZE;
     ST->BootServices->GetMemoryMap(
-      &uefi_mmap.nbytes,
-      uefi_mmap.buffer,
-      &uefi_mmap.mapkey,
-      &uefi_mmap.desc_size,
-      &uefi_mmap.desc_version
+      &map.buffer_size,
+      (EFI_MEMORY_DESCRIPTOR*) map.buffer,
+      &map.map_key,
+      &map.descriptor_size,
+      &map.descriptor_version
     );
 
-    Print2(L"nbytes: ");
-    PrintNumber(uefi_mmap.nbytes);
-    Print2(L"\r\ndesc_size: ");
-    PrintNumber(uefi_mmap.desc_size);
-    Print2(L"\r\ndesc_version: ");
-    PrintNumber(uefi_mmap.desc_version);
+    ST->BootServices->ExitBootServices(ImageHandle, map.map_key);
+    term_write("exit boot services complete\n");
 
-    WAIT;
+    asm("cli");
+    term_write("interrupts off\n");
 
-    for (int i = 0; i < uefi_mmap.nbytes; i += uefi_mmap.desc_size) {
-        EFI_MEMORY_DESCRIPTOR* desc = (EFI_MEMORY_DESCRIPTOR*) &uefi_mmap.buffer[i];
-        Print2(L"\r\ntype: ");
-        PrintNumberWidth(desc->Type, 3);
-        Print2(L" pages: ");
-        PrintNumberWidth(desc->NumberOfPages, 5);
-        Print2(L" phys: ");
-        PrintNumberWidth(desc->PhysicalStart, 12);
-        Print2(L" virt: ");
-        PrintNumberWidth(desc->VirtualStart, 12);
-        Print2(L" attr: ");
-        PrintNumberWidth(desc->Attribute, 12);
-        Print2(L" pad: ");
-        PrintNumber(desc->Pad);
-    }
+    memory_init(&map);
+    term_write("memory init complete\n");
 
-    WAIT;*/
-
-    return EFI_SUCCESS;
+    while(1);
 }

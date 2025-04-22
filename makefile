@@ -1,12 +1,12 @@
 CC := x86_64-w64-mingw32-gcc
 
-override CFLAGS += -ffreestanding -O2 -nostdlib -nostartfiles -Wall -Wextra -I/usr/include/efi
+override CFLAGS += -ffreestanding -O2 -nostdlib -nostartfiles -Wall -Wextra -I/usr/include/efi # -g
 LDFLAGS := -nostdlib -Wl,-dll -shared -Wl,--subsystem,10 -e efi_main
 
 .PHONY: clean qemu
 all: kernelua.bin
 
-kernelua.bin: src/start_uefi.o src/term.o
+kernelua.bin: src/start_uefi.o src/term.o src/memory_manager.o src/memory_manager_asm.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 kernelua.img: kernelua.bin
@@ -18,6 +18,7 @@ kernelua.img: kernelua.bin
 
 qemu: kernelua.img
 	qemu-system-x86_64 -drive if=pflash,format=raw,readonly=on,file=/usr/share/qemu/OVMF.fd -drive format=raw,file=$^
+	#-S -gdb tcp::9000 -no-reboot -no-shutdown -d int,cpu_reset
 
 clean:
 	@rm -f src/*.o
