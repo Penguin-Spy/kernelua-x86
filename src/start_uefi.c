@@ -83,9 +83,16 @@ EFI_STATUS efi_main(EFI_UNUSED EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *table) 
       &map.descriptor_size,
       &map.descriptor_version
     );
+    term_write("mem map desc size: ");
+    term_writeNumber(map.descriptor_size);
+    term_write("\n");
 
     ST->BootServices->ExitBootServices(ImageHandle, map.map_key);
     term_write("exit boot services complete\n");
+
+    term_write("mem map desc size: ");
+    term_writeNumber(map.descriptor_size);
+    term_write("\n");
 
     asm("cli");
     term_write("interrupts off\n");

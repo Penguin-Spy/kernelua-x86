@@ -17,6 +17,78 @@
 #include "term.h"
 #include "memory_manager.h"
 
+void memzero(uint8_t* address, int length) {
+    for(int i = 0; i < length; i++) {
+        address[i] = 0;
+    }
+}
+
+// --- Global Descriptor Table ---
+#pragma pack (1)
+
+struct gdt_entry {
+  uint16_t limit15_0;            uint16_t base15_0;
+  uint8_t  base23_16;            uint8_t  type;
+  uint8_t  limit19_16_and_flags; uint8_t  base31_24;
+};
+
+struct tss {
+    uint32_t reserved0; uint64_t rsp0;      uint64_t rsp1;
+    uint64_t rsp2;      uint64_t reserved1; uint64_t ist1;
+    uint64_t ist2;      uint64_t ist3;      uint64_t ist4;
+    uint64_t ist5;      uint64_t ist6;      uint64_t ist7;
+    uint64_t reserved2; uint16_t reserved3; uint16_t iopb_offset;
+} tss;
+
+__attribute__((aligned(4096)))
+struct {
+  struct gdt_entry null;
+  struct gdt_entry kernel_code;
+  struct gdt_entry kernel_data;
+  struct gdt_entry null2;
+  struct gdt_entry user_data;
+  struct gdt_entry user_code;
+  struct gdt_entry ovmf_data;
+  struct gdt_entry ovmf_code;
+  struct gdt_entry tss_low;
+  struct gdt_entry tss_high;
+} gdt_table = {
+    {0, 0, 0, 0x00, 0x00, 0},  /* 0x00 null  */
+    {0, 0, 0, 0x9a, 0xa0, 0},  /* 0x08 kernel code (kernel base selector) */
+    {0, 0, 0, 0x92, 0xa0, 0},  /* 0x10 kernel data */
+    {0, 0, 0, 0x00, 0x00, 0},  /* 0x18 null (user base selector) */
+    {0, 0, 0, 0x92, 0xa0, 0},  /* 0x20 user data */
+    {0, 0, 0, 0x9a, 0xa0, 0},  /* 0x28 user code */
+    {0, 0, 0, 0x92, 0xa0, 0},  /* 0x30 ovmf data */
+    {0, 0, 0, 0x9a, 0xa0, 0},  /* 0x38 ovmf code */
+    {0, 0, 0, 0x89, 0xa0, 0},  /* 0x40 tss low */
+    {0, 0, 0, 0x00, 0x00, 0},  /* 0x48 tss high */
+};
+
+struct table_ptr {
+    uint16_t limit;
+    uint64_t base;
+};
+#pragma pack ()
+
+extern void load_gdt(struct table_ptr* gdt_ptr);
+
+static void setup_gdt() {
+    memzero((void*)&tss, sizeof(tss));
+    uint64_t tss_base = ((uint64_t)&tss);
+    gdt_table.tss_low.base15_0 = tss_base & 0xffff;
+    gdt_table.tss_low.base23_16 = (tss_base >> 16) & 0xff;
+    gdt_table.tss_low.base31_24 = (tss_base >> 24) & 0xff;
+    gdt_table.tss_low.limit15_0 = sizeof(tss);
+    gdt_table.tss_high.limit15_0 = (tss_base >> 32) & 0xffff;
+    gdt_table.tss_high.base15_0 = (tss_base >> 48) & 0xffff;
+
+    struct table_ptr gdt_ptr = { sizeof(gdt_table)-1, (uint64_t)&gdt_table };
+    load_gdt(&gdt_ptr);
+}
+
+// --- Page Table ---
+
 #define PAGE_SIZE 4096
 
 #define PAGE_TABLE_ENTRY_COUNT 512
@@ -33,22 +105,18 @@ uint64_t pml4_table[PAGE_TABLE_ENTRY_COUNT];
 
 extern void load_page_map_level_4(uint64_t* pml4);
 
-uint64_t next_page;
-uint64_t get_next_page() {
+static uint64_t next_page;
+static uint64_t get_next_page() {
     uint64_t page = next_page;
     next_page += PAGE_SIZE;
     return page;
 }
 
-void memzero(uint8_t* address, int length) {
-    for(int i = 0; i < length; i++) {
-        *(address + i) = 0;
-    }
-}
-
 
 static void identity_map_page(uint64_t logical_address) {
     uint64_t flags = PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
+    term_write("\nmapping page ");
+    term_writeHex64(logical_address);
 
     uint64_t pml4_index = (logical_address >> 39) & 0x1ff;
     uint64_t pdp_index = (logical_address >> 30) & 0x1ff;
@@ -93,21 +161,12 @@ static void identity_map_page(uint64_t logical_address) {
 }
 
 void memory_init(uefi_mmap* map) {
-    /*term_setCursorPos(0, 0);
-    for (int i = 0; i < map->nbytes; i += map->desc_size) {
-        EFI_MEMORY_DESCRIPTOR* desc = (EFI_MEMORY_DESCRIPTOR*) &map->buffer[i];
-        term_write("type: ");
-        term_writeHex(desc->Type, 1);
-        term_write(" pages: ");
-        term_writeHex64(desc->NumberOfPages);
-        term_write(" phys: ");
-        term_writeHex64(desc->PhysicalStart);
-        term_write(" virt: ");
-        term_writeHex64(desc->VirtualStart);
-        term_write(" attr: ");
-        term_writeHex64(desc->Attribute);
-        term_write("\n");
-    }*/
+    setup_gdt();
+    term_write("setup gdt\n");
+
+    term_write("mem map desc size: ");
+    term_writeNumber(map->descriptor_size);
+    term_write("\n");
 
     uint64_t max_page_start = 0;
     uint64_t max_page_count = 0;
@@ -142,8 +201,6 @@ void memory_init(uefi_mmap* map) {
 
     term_write("mapped all of the uefi memory map\n");
 
-    // triple faults with (old->new): 0xffffffff->0xe, 0xe->0xe, 0x8->0xe
-    // this is a triple page fault
     load_page_map_level_4(pml4_table);
 
     term_write("loaded new page map\n");

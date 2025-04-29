@@ -1,0 +1,17 @@
+{
+    // https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "name": "Debug (codelldb)",
+            "request": "launch",
+            "targetCreateCommands": [
+                "target create --no-dependents --arch x86_64 ${workspaceRoot}/kernelua.efi --symfile ${workspaceRoot}/kernelua.efi.pdb"
+            ],
+            "processCreateCommands": [
+                "gdb-remote localhost:9000"
+            ]
+        }
+    ]
+}
