@@ -7,7 +7,7 @@
             "name": "Debug (codelldb)",
             "request": "launch",
             "targetCreateCommands": [
-                "target create --no-dependents --arch x86_64 ${workspaceRoot}/kernelua.efi --symfile ${workspaceRoot}/kernelua.efi.pdb"
+                "target create --no-dependents --arch x86_64 ${workspaceRoot}/kernelua.efi"
             ],
             "processCreateCommands": [
                 "gdb-remote localhost:9000"
