@@ -6,7 +6,7 @@ all: loader.efi kernelua.elf
 loader.efi: src/uefi_loader.c
 	x86_64-w64-mingw32-gcc $(CFLAGS) -I/usr/include/efi -Wl,-dll -shared -Wl,--subsystem,10 -e uefi_loader -o $@ $^
 
-kernelua.elf: src/uefi_start.o # src/term.o src/memory_manager.o src/memory_manager_asm.o
+kernelua.elf: src/uefi_start.o src/term.o # src/memory_manager.o src/memory_manager_asm.o
 	$(CC) $(CFLAGS) -e uefi_start -static -no-pie -o $@ $^
 #	objcopy --only-keep-debug kernelua.efi kernelua.efi.pdb
 

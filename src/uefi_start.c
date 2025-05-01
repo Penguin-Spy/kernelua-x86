@@ -10,10 +10,17 @@
  * networks.
  */
 
-//#include "term.h"
+#include <stdint.h>
+
+#include "uefi_loader.h"
+#include "term.h"
 //#include "memory_manager.h"
 
-void uefi_start() {
+entrypoint_t uefi_start;
+void uefi_start(loader_data* loader_data) {
+    term_init(loader_data->framebuffer, loader_data->framebuffer_width, loader_data->framebuffer_height, loader_data->framebuffer_pixels_per_line);
+    term_write("hiii :3");
+
 test:
     asm("mov $0x24350000, %RDX");
     goto test;
