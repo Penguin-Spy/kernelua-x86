@@ -1,4 +1,4 @@
-/* start_uefi.c © Penguin_Spy 2024-2025
+/* uefi_loader.c © Penguin_Spy 2024-2025
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -50,7 +50,7 @@ EFI_STATUS read_file(EFI_FILE_HANDLE file, uint64_t offset, uint64_t size, void*
     return EFI_SUCCESS;
 }
 
-EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* ST) {
+EFI_STATUS uefi_loader(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* ST) {
     EFI_INPUT_KEY Key;
     EFI_STATUS status;
 

@@ -1,4 +1,4 @@
-/* setup_uefi.c © Penguin_Spy 2025
+/* uefi_start.c © Penguin_Spy 2025
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -13,7 +13,7 @@
 //#include "term.h"
 //#include "memory_manager.h"
 
-void setup_uefi() {
+void uefi_start() {
 test:
     asm("mov $0x24350000, %RDX");
     goto test;
