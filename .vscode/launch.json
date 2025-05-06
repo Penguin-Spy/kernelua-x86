@@ -6,8 +6,9 @@
             "type": "lldb",
             "name": "Debug (codelldb)",
             "request": "launch",
+            "terminal": "console",
             "targetCreateCommands": [
-                "target create --no-dependents --arch x86_64 ${workspaceRoot}/loader.efi"
+                "target create --no-dependents --arch x86_64 ${workspaceRoot}/kernelua.elf"
             ],
             "processCreateCommands": [
                 "gdb-remote localhost:9000"

@@ -24,6 +24,7 @@ typedef struct {
     uint32_t  framebuffer_pixels_per_line;
     void*     memory_map;
     uint64_t  memory_descriptor_size;
+    uint64_t  debug_base_address;
 } loader_data;
 
 // allocate program segments with this memory type so the kernel knows where it is (and therefore where it isn't)

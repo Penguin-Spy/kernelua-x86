@@ -19,11 +19,15 @@
 entrypoint_t uefi_start;
 void uefi_start(loader_data* loader_data) {
     term_init(loader_data->framebuffer, loader_data->framebuffer_width, loader_data->framebuffer_height, loader_data->framebuffer_pixels_per_line);
-    term_write("hiii :3");
+    term_write("hiii :3\n");
+    term_write("base address: 0x");
+    term_writeHex64(loader_data->debug_base_address);
+    term_write("\n");
 
-test:
-    asm("mov $0x24350000, %RDX");
-    goto test;
+    volatile int pause = 1;
+    while(pause); 
+
+    term_write("woah unpaused");
 
     //asm("cli");
     //term_write("interrupts off\n");

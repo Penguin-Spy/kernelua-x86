@@ -14,8 +14,6 @@
 #include <stdint.h>
 
 #include "uefi_loader.h"
-#include "efidef.h"
-#include "efierr.h"
 
 #define EI_NIDENT 16
 typedef struct {
@@ -217,6 +215,7 @@ EFI_STATUS uefi_loader(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* ST) {
     data.framebuffer_pixels_per_line = info->PixelsPerScanLine;
     data.memory_map = memory_map;
     data.memory_descriptor_size = memory_descriptor_size;
+    data.debug_base_address = load_address;
 
     (*uefi_start)(&data);
     while(1);
