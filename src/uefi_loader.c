@@ -214,6 +214,7 @@ EFI_STATUS uefi_loader(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* ST) {
     data.framebuffer_height = info->VerticalResolution;
     data.framebuffer_pixels_per_line = info->PixelsPerScanLine;
     data.memory_map = memory_map;
+    data.memory_map_size = memory_map_size;
     data.memory_descriptor_size = memory_descriptor_size;
     data.debug_base_address = load_address;
 

@@ -12,20 +12,9 @@
 
 .global load_gdt
 load_gdt:
-    mov $0xDEADBEE0, %RDX
-    lgdt (%rcx)      // load GDT, rdi (1st argument) contains the gdt_ptr
-    mov $0xDEADBEE1, %RDX
+    lgdt (%rdi)     // load GDT, rdi (1st argument) contains the gdt_ptr
     movw $0x40, %ax // TSS segment is 0x40
-    //mov $0xDEADBEA4, %RDX
-    //push %RDX
-    //mov $0xDEADBEA5, %RDX
-    //push %RDX
-    mov $0xDEADBEE2, %RDX
     ltr %ax         // load TSS
-    mov $0xDEADBEE3, %RDX
-
-//halt:
-//    jmp halt
 
     movw $0x10, %ax // kernel data segment is 0x10
     movw %ax, %ds   // load kernel data segment in data segment registers
@@ -43,18 +32,7 @@ load_gdt:
 
 .global load_page_map_level_4
 load_page_map_level_4:
-    mov $0xDEADBE01, %RDX
     mov $0x000ffffffffff000, %rax
-    mov %rcx, %rbx
-    mov $0xDEADBE02, %RDX
-    and %rax, %rcx      // was %rdi
-    mov $0xDEADBE03, %RDX
-    mov %rcx, %cr3
-    mov $0xDEADBE04, %RDX
-
-    mov $0x0, %RAX
-halt:
-    cmp $0, %rax
-    je halt
-
+    and %rax, %rdi
+    mov %rdi, %cr3
     ret

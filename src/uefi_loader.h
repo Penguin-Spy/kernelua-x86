@@ -23,6 +23,7 @@ typedef struct {
     uint32_t  framebuffer_height;
     uint32_t  framebuffer_pixels_per_line;
     void*     memory_map;
+    uint64_t  memory_map_size;
     uint64_t  memory_descriptor_size;
     uint64_t  debug_base_address;
 } loader_data;

@@ -11,10 +11,9 @@
  */
 
 #include <stdint.h>
-#include "efi.h"
-#include "efidef.h"
 
 #include "term.h"
+#include "uefi_loader.h"
 #include "memory_manager.h"
 
 void memzero(uint8_t* address, int length) {
@@ -22,6 +21,34 @@ void memzero(uint8_t* address, int length) {
         address[i] = 0;
     }
 }
+
+enum {
+    EfiReservedMemoryType,
+    EfiLoaderCode,
+    EfiLoaderData,
+    EfiBootServicesCode,
+    EfiBootServicesData,
+    EfiRuntimeServicesCode,
+    EfiRuntimeServicesData,
+    EfiConventionalMemory,
+    EfiUnusableMemory,
+    EfiACPIReclaimMemory,
+    EfiACPIMemoryNVS,
+    EfiMemoryMappedIO,
+    EfiMemoryMappedIOPortSpace,
+    EfiPalCode,
+    EfiMaxMemoryType
+};
+
+typedef struct {
+    uint32_t type;
+    uint32_t _padding;
+    uint64_t physical_start;
+    uint64_t virtual_start;
+    uint64_t page_count;
+    uint64_t attribute;
+} uefi_memory_descriptor;
+
 
 // --- Global Descriptor Table ---
 #pragma pack (1)
@@ -53,16 +80,23 @@ struct {
   struct gdt_entry tss_low;
   struct gdt_entry tss_high;
 } gdt_table = {
-    {0, 0, 0, 0x00, 0x00, 0},  /* 0x00 null  */
-    {0, 0, 0, 0x9a, 0xa0, 0},  /* 0x08 kernel code (kernel base selector) */
-    {0, 0, 0, 0x92, 0xa0, 0},  /* 0x10 kernel data */
-    {0, 0, 0, 0x00, 0x00, 0},  /* 0x18 null (user base selector) */
-    {0, 0, 0, 0x92, 0xa0, 0},  /* 0x20 user data */
-    {0, 0, 0, 0x9a, 0xa0, 0},  /* 0x28 user code */
-    {0, 0, 0, 0x92, 0xa0, 0},  /* 0x30 ovmf data */
-    {0, 0, 0, 0x9a, 0xa0, 0},  /* 0x38 ovmf code */
-    {0, 0, 0, 0x89, 0xa0, 0},  /* 0x40 tss low */
-    {0, 0, 0, 0x00, 0x00, 0},  /* 0x48 tss high */
+//            type  flags
+    {0, 0, 0,    0,    0, 0},  /* 0x00 null  */
+    {0, 0, 0, 0x9A, 0xA0, 0},  /* 0x08 kernel code (kernel base selector) */
+    {0, 0, 0, 0x92, 0xA0, 0},  /* 0x10 kernel data */
+    {0, 0, 0,    0,    0, 0},  /* 0x18 null (user base selector) */
+    {0, 0, 0, 0x92, 0xA0, 0},  /* 0x20 user data */
+    {0, 0, 0, 0x9A, 0xA0, 0},  /* 0x28 user code */
+    {0, 0, 0, 0x92, 0xA0, 0},  /* 0x30 ovmf data */
+    {0, 0, 0, 0x9A, 0xA0, 0},  /* 0x38 ovmf code */
+    {0, 0, 0, 0x89, 0xA0, 0},  /* 0x40 tss low */
+    {0, 0, 0,    0,    0, 0},  /* 0x48 tss high */
+// type  0x9A = 1001_1010 = present,  privilege level 0,  user (for code)    ; code, not conforming, [readable, not accessed]
+// type  0x92 = 1001_0010 = present, [privilege level 0], user (for data)    ; data, [not expand down, writable, not accessed]
+// type  0x89 = 1000_1001 = present,  privilege level 0, system (for TSS)    ; available 64-bit TSS
+// flags 0xA0 = 1010_0000 = [granularity = 4KiB], long mode (D0, L1), unused ; [segment limit = 0]
+//                          "long mode" bits ignored by data & TSS segments
+// brackets indicate bits that are ignored in long mode
 };
 
 struct table_ptr {
@@ -80,6 +114,7 @@ static void setup_gdt() {
     gdt_table.tss_low.base23_16 = (tss_base >> 16) & 0xff;
     gdt_table.tss_low.base31_24 = (tss_base >> 24) & 0xff;
     gdt_table.tss_low.limit15_0 = sizeof(tss);
+    // base 32-63
     gdt_table.tss_high.limit15_0 = (tss_base >> 32) & 0xffff;
     gdt_table.tss_high.base15_0 = (tss_base >> 48) & 0xffff;
 
@@ -115,8 +150,6 @@ static uint64_t get_next_page() {
 
 static void identity_map_page(uint64_t logical_address) {
     uint64_t flags = PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
-    term_write("\nmapping page ");
-    term_writeHex64(logical_address);
 
     uint64_t pml4_index = (logical_address >> 39) & 0x1ff;
     uint64_t pdp_index = (logical_address >> 30) & 0x1ff;
@@ -160,22 +193,26 @@ static void identity_map_page(uint64_t logical_address) {
     } // else, this page was already mapped (?)
 }
 
-void memory_init(uefi_mmap* map) {
+void memory_init(loader_data* loader_data) {
+    asm("cli");
+    term_write("interrupts off\n");
+
     setup_gdt();
     term_write("setup gdt\n");
 
     term_write("mem map desc size: ");
-    term_writeNumber(map->descriptor_size);
+    term_writeNumber(loader_data->memory_descriptor_size);
     term_write("\n");
 
     uint64_t max_page_start = 0;
     uint64_t max_page_count = 0;
-    for (uint64_t i = 0; i < map->buffer_size; i += map->descriptor_size) {
-        EFI_MEMORY_DESCRIPTOR* desc = (EFI_MEMORY_DESCRIPTOR*) &map->buffer[i];
-        if(desc->Type != EfiConventionalMemory) continue;
-        if(desc->NumberOfPages > max_page_count) {
-            max_page_count = desc->NumberOfPages;
-            max_page_start = desc->PhysicalStart;
+    uint8_t* memory_map = loader_data->memory_map;
+    for (uint64_t i = 0; i < loader_data->memory_map_size; i += loader_data->memory_descriptor_size) {
+        uefi_memory_descriptor* desc = (uefi_memory_descriptor*) &memory_map[i];
+        if(desc->type != EfiConventionalMemory) continue;
+        if(desc->page_count > max_page_count) {
+            max_page_count = desc->page_count;
+            max_page_start = desc->physical_start;
         }
     }
 
@@ -190,19 +227,25 @@ void memory_init(uefi_mmap* map) {
     // TODO: identity map all of the UEFI sections that need to be preserved at runtime
     // for now, just identity map everything in the UEFI memory map.
     // our "OS Loader" code (that is running right now) is in one of these sections, but we don't know which
-    for (uint64_t i = 0; i < map->buffer_size; i+= map->descriptor_size) {
-        EFI_MEMORY_DESCRIPTOR* desc = (EFI_MEMORY_DESCRIPTOR*) &map->buffer[i];
+    for (uint64_t i = 0; i < loader_data->memory_map_size; i += loader_data->memory_descriptor_size) {
+        uefi_memory_descriptor* desc = (uefi_memory_descriptor*) &memory_map[i];
         // uint32_t type = desc->Type;
-        uint64_t end = desc->PhysicalStart + (desc->NumberOfPages * PAGE_SIZE);
-        for (uint64_t page = desc->PhysicalStart; page < end; page += PAGE_SIZE) {
+        uint64_t end = desc->physical_start + (desc->page_count * PAGE_SIZE);
+        for (uint64_t page = desc->physical_start; page < end; page += PAGE_SIZE) {
             identity_map_page(page);
         }
     }
 
+    // map the framebuffer too, so we can still print to it (interestingly, the framebuffer is not mentioned in the UEFI memory map)
+    uint64_t framebuffer_address = (uint64_t) loader_data->framebuffer;
+    uint64_t framebuffer_page_count = (loader_data->framebuffer_pixels_per_line * loader_data->framebuffer_height) * 4 / PAGE_SIZE;
+    for(uint64_t i = 0; i < framebuffer_page_count; i++) {
+        identity_map_page(framebuffer_address);
+        framebuffer_address += PAGE_SIZE;
+    }
     term_write("mapped all of the uefi memory map\n");
 
     load_page_map_level_4(pml4_table);
-
     term_write("loaded new page map\n");
 }
 

@@ -14,7 +14,7 @@
 
 #include "uefi_loader.h"
 #include "term.h"
-//#include "memory_manager.h"
+#include "memory_manager.h"
 
 entrypoint_t uefi_start;
 void uefi_start(loader_data* loader_data) {
@@ -22,16 +22,17 @@ void uefi_start(loader_data* loader_data) {
     term_write("hiii :3\n");
     term_write("base address: 0x");
     term_writeHex64(loader_data->debug_base_address);
+    term_write("\nframebuffer address: 0x");
+    term_writeHex64((uint64_t) loader_data->framebuffer);
     term_write("\n");
 
     volatile int pause = 1;
-    while(pause); 
+    while(pause);
 
-    term_write("woah unpaused");
+    term_write("woah unpaused\n");
 
-    //asm("cli");
-    //term_write("interrupts off\n");
+    memory_init(loader_data);
+    term_write("memory init complete\n");
 
-    //memory_init(&map, graphics->Mode->FrameBufferBase);
-    //term_write("memory init complete\n");
+    while(1);
 }

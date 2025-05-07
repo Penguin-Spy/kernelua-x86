@@ -15,17 +15,9 @@
 
 #include <stdint.h>
 
-// TODO: get the size of the memory map data at runtime, and allocate a buffer for it (using UEFI)
-#define UEFI_MMAP_SIZE 0x4000
-typedef struct uefi_mmap {
-    uint64_t buffer_size;
-    uint8_t buffer[UEFI_MMAP_SIZE];
-    uint64_t map_key;
-    uint64_t descriptor_size;
-    uint32_t descriptor_version;
-} uefi_mmap;
+#include "uefi_loader.h"
 
-void memory_init(uefi_mmap* map);
+void memory_init(loader_data* loader_data);
 void* memory_allocatePage();
 
 #endif
